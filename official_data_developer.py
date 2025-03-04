@@ -124,13 +124,14 @@ class AudioDataDeveloper():
         self.expanded_df.to_pickle(save_path)
         
 def main():
-
-
-if __name__ == "__main__":
-    data_developer = AudioDataDeveloper(data_path='~/projects/dsci410_510/Kolahi_dataset/tracks_with_countries.csv')
+    data_developer = AudioDataDeveloper(data_path='/projects/dsci410_510/Kolahi_dataset/audio_paths_with_countries.csv')
     data_developer.load_data()
     data_developer.balance_dataset()
     data_developer.create_expanded_dataset()
-    data_developer.save_dataset('~/projects/dsci410_510/Kolahi_dataset/expanded_dataset_v1.pkl')
+    data_developer.save_dataset('/projects/dsci410_510/Kolahi_dataset/expanded_dataset_v9.pkl')
+
+if __name__ == "__main__":
+    main()
+    #data_developer.save_dataset('/projects/dsci410_510/Kolahi_dataset/expanded_dataset_v1.pkl')
 
     

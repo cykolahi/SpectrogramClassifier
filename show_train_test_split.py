@@ -2,15 +2,25 @@ import pickle
 import pandas as pd
 import numpy as np
 def main():
-    with open('/projects/dsci410_510/Kolahi_data_temp/Kolahi_dataset.pkl', 'rb') as f:
-        data = pickle.load(f)
+    with open('/projects/dsci410_510/Kolahi_data_temp/train_dataset.pkl', 'rb') as f:
+        train_data = pickle.load(f)
+
+    with open('/projects/dsci410_510/Kolahi_data_temp/val_dataset.pkl', 'rb') as f:
+        val_data = pickle.load(f)
+    
+    with open('/projects/dsci410_510/Kolahi_data_temp/test_dataset.pkl', 'rb') as f:
+        test_data = pickle.load(f)
     
 
-    print("data.keys(): ", data.keys())
+    print("train_data.keys(): ", train_data.keys())
     #print(data['audio_paths'].shape)
-    print("countries: ", np.unique(data['countries']))
+    print("train_data['countries']: ", np.unique(train_data['countries']))
     #print("data['segment_numbers'][0].shape: ", data['segment_numbers'][0].shape)
-    print("spectrogram tensor shape: ", data['spectrograms'][6].shape)
+    print("spectrogram shape: ", train_data['spectrograms'][6].shape)
+
+    print('train data size: ', len(train_data['countries']))
+    print('val data size: ', len(val_data['countries']))
+    print('test data size: ', len(test_data['countries']))
     #print("data['train_indices'].shape: ", data['train_indices'].shape)
     #print("data['test_indices'].shape: ", data['test_indices'].shape)
     #print("number of train samples: ", len(data['train']))
