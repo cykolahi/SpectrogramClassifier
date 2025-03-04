@@ -102,11 +102,11 @@ def save_dataset(df, save_path, format='pkl'):
 
 
 def main():
-    data_loader = AudioDataLoader(data_path='~/projects/dsci410_510/Kolahi_dataset/Kolahi_data')
+    data_loader = AudioDataLoader(data_path='/projects/dsci410_510/Kolahi_data_temp/expanded_dataset_v8.pkl')
     train_df, val_df, test_df = data_loader.create_train_test_split()
-    save_dataset(train_df, '~/projects/dsci410_510/Kolahi_dataset/train_dataset.pkl')
-    save_dataset(val_df, '~/projects/dsci410_510/Kolahi_dataset/val_dataset.pkl')
-    save_dataset(test_df, '~/projects/dsci410_510/Kolahi_dataset/test_dataset.pkl')
+    save_dataset(train_df, '/projects/dsci410_510/Kolahi_data_temp/train_dataset.pkl')
+    save_dataset(val_df, '/projects/dsci410_510/Kolahi_data_temp/val_dataset.pkl')
+    save_dataset(test_df, '/projects/dsci410_510/Kolahi_data_temp/test_dataset.pkl')
 
 if __name__ == "__main__":
     main()
