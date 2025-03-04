@@ -36,12 +36,18 @@ class AudioDataLoader():
         Returns:
             tuple: (train_df, test_df)
         """
-        train_df, test_df = train_test_split(
+        train_df, temp_test_df = train_test_split(
             self.expanded_df,
-            test_size=test_size,
+            test_size=0.3,
             random_state=random_state,
             stratify=self.expanded_df['country']
         )
+        val_df, test_df = train_test_split(
+            temp_test_df,
+            test_size=0.5,
+            random_state=random_state,
+            stratify=temp_test_df['country']
+        )   
         
         print(f"\nDataset split complete:")
         print(f"Training set: {len(train_df)} samples")
@@ -57,9 +63,9 @@ class AudioDataLoader():
         print("\nTest set:")
         print(test_df['country'].value_counts())
         
-        return train_df, test_df
+        return train_df, val_df, test_df
     
-    def save_dataset(self, save_path, format='pkl'):
+def save_dataset(df, save_path, format='pkl'):
         """
         Save the expanded dataset.
         
@@ -97,8 +103,10 @@ class AudioDataLoader():
 
 def main():
     data_loader = AudioDataLoader(data_path='~/projects/dsci410_510/Kolahi_dataset/Kolahi_data')
-    data_loader.create_train_test_split()
-    data_loader.save_dataset('~/projects/dsci410_510/Kolahi_dataset/countries_w_spectrograms.pkl')
+    train_df, val_df, test_df = data_loader.create_train_test_split()
+    save_dataset(train_df, '~/projects/dsci410_510/Kolahi_dataset/train_dataset.pkl')
+    save_dataset(val_df, '~/projects/dsci410_510/Kolahi_dataset/val_dataset.pkl')
+    save_dataset(test_df, '~/projects/dsci410_510/Kolahi_dataset/test_dataset.pkl')
 
 if __name__ == "__main__":
     main()
