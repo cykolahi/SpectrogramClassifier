@@ -12,7 +12,7 @@ class AudioLocationParser:
 
 
     def get_coordinates_with_audio_paths(self, audio_path):
-        tracks = utils.load('/data/fma_metadata/tracks.csv')
+        tracks = utils.load('~/projects/dsci410_510/Kolahi_dataset/audio_data/fma_small/tracks.csv')
         small = tracks[tracks['set', 'subset'] <= 'small']
         
         artist_location_dict = {}
@@ -135,3 +135,10 @@ class AudioLocationParser:
             df = balanced_df.reset_index(drop=True)
             
         return df
+
+def main():
+    parser = AudioLocationParser()
+    parser.parse_locations('/projects/dsci410_510/Kolahi_dataset/audio_data/fma_small/tracks.csv', save_path='/projects/dsci410_510/Kolahi_dataset/audio_data/fma_small/tracks_with_countries.csv')
+
+if __name__ == "__main__":
+    main()
