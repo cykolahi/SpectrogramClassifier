@@ -1,9 +1,11 @@
-name: dlproject_new
+name: dlproject_v4
 channels:
   - pytorch
   - conda-forge
   - defaults
 dependencies:
+  - python>=3.8,<3.10
+  - audioread
   - pytorch
   - torchvision
   - pytorch-lightning
@@ -12,5 +14,9 @@ dependencies:
   - matplotlib
   - seaborn
   - librosa
-
- 
+  - geopy
+  - scikit-learn
+  - scipy
+  - pip
+  - pip:
+    - aifc

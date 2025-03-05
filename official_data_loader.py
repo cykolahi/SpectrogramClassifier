@@ -1,10 +1,29 @@
 import pandas as pd
 import numpy as np
 import librosa
+import torch
+from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 import pickle
 from torch.utils import DataLoader
 #import h5py
+
+class AudioDataset(Dataset):
+    """Custom Dataset class for audio spectrograms"""
+    def __init__(self, df):
+        self.df = df
+        
+    def __len__(self):
+        return len(self.df)
+    
+    def __getitem__(self, idx):
+        # Convert spectrogram to tensor and add channel dimension
+        spectrogram = torch.FloatTensor(self.df.iloc[idx]['spectrogram']).unsqueeze(0)
+        # Get label (you might want to convert country to numerical label here)
+        label = self.df.iloc[idx]['country']
+        
+        
+        return spectrogram, label
 
 class AudioDataLoader():
     def __init__(self, data_path):
@@ -12,29 +31,31 @@ class AudioDataLoader():
         Initialize the AudioDataLoader.
         
         Args:
-            data_path (str): Path to CSV file containing audio paths and country labels
+            data_path (str): Path to pickle file containing expanded dataset
         """
         self.data_path = data_path
-        self.df = pd.read_csv(self.data_path)
-        self.expanded_df = None  # Initialize as None
+        # Load pickle file instead of CSV
+        with open(data_path, 'rb') as f:
+            self.expanded_df = pd.read_pickle(f)
 
-        if self.df is None or len(self.df) == 0:
+        if self.expanded_df is None or len(self.expanded_df) == 0:
             raise ValueError(f"Failed to load data from {data_path} or file is empty")
         
         # Don't create expanded dataset in __init__
         # Let the user call it explicitly when needed
     
     
-    def create_train_test_split(self, test_size=0.2, random_state=42):
+    def create_train_val_test_split(self, test_size=0.2, random_state=42, batch_size=32):
         """
-        Create stratified train/test splits.
+        Create stratified train/test splits and return DataLoaders.
         
         Args:
             test_size (float): Proportion of dataset for test split
             random_state (int): Random seed
+            batch_size (int): Batch size for DataLoader
             
         Returns:
-            tuple: (train_df, test_df)
+            tuple: (train_loader, val_loader, test_loader)
         """
         train_df, temp_test_df = train_test_split(
             self.expanded_df,
@@ -48,23 +69,39 @@ class AudioDataLoader():
             random_state=random_state,
             stratify=temp_test_df['country']
         )   
+
+        # Create Dataset objects
+        train_dataset = AudioDataset(train_df)
+        val_dataset = AudioDataset(val_df)
+        test_dataset = AudioDataset(test_df)
+
+        # Create DataLoader objects
+        train_loader = DataLoader(
+            train_dataset, 
+            batch_size=batch_size, 
+            shuffle=True,
+            num_workers=4
+        )
+        val_loader = DataLoader(
+            val_dataset, 
+            batch_size=batch_size, 
+            shuffle=False,
+            num_workers=4
+        )
+        test_loader = DataLoader(
+            test_dataset, 
+            batch_size=batch_size, 
+            shuffle=False,
+            num_workers=4
+        )
         
         print(f"\nDataset split complete:")
         print(f"Training set: {len(train_df)} samples")
+        print(f"Validation set: {len(val_df)} samples")
         print(f"Test set: {len(test_df)} samples")
+        
+        return train_loader, val_loader, test_loader
 
-        #print(train_df['country'].value_counts())
-        print(f"len(train_df): {len(train_df)}")
-        print(f"len(train_df['country'].unique()): {len(train_df['country'].unique())}")
-        
-        print("\nCountry distribution:")
-        print("\nTraining set:")
-        print(train_df['country'].value_counts())
-        print("\nTest set:")
-        print(test_df['country'].value_counts())
-        
-        return train_df, val_df, test_df
-    
 def save_dataset(df, save_path, format='pkl'):
         """
         Save the expanded dataset.
@@ -102,11 +139,11 @@ def save_dataset(df, save_path, format='pkl'):
 
 
 def main():
-    data_loader = AudioDataLoader(data_path='/projects/dsci410_510/Kolahi_data_temp/expanded_dataset_v8.pkl')
-    train_df, val_df, test_df = data_loader.create_train_test_split()
-    save_dataset(train_df, '/projects/dsci410_510/Kolahi_data_temp/train_dataset.pkl')
-    save_dataset(val_df, '/projects/dsci410_510/Kolahi_data_temp/val_dataset.pkl')
-    save_dataset(test_df, '/projects/dsci410_510/Kolahi_data_temp/test_dataset.pkl')
+    data_loader = AudioDataLoader(data_path='/projects/dsci410_510/Kolahi_data_temp/expanded_dataset_v9.pkl')
+    train_loader, val_loader, test_loader = data_loader.create_train_val_test_split()
+    save_dataset(train_loader, '/projects/dsci410_510/Kolahi_data_temp/train_dataset.pkl')
+    save_dataset(val_loader, '/projects/dsci410_510/Kolahi_data_temp/val_dataset.pkl')
+    save_dataset(test_loader, '/projects/dsci410_510/Kolahi_data_temp/test_dataset.pkl')
 
 if __name__ == "__main__":
     main()

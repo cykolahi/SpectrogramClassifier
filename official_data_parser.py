@@ -9,25 +9,32 @@ class AudioLocationParser:
     def __init__(self):
         """Initialize the parser with Nominatim geocoder"""
         self.geolocator = Nominatim(user_agent="my_geopy_app")
+        self.audio_paths = []
+        self.coordinates = []
+        self.countries = []
+        self.artist_location_dict = {}
 
 
     def get_coordinates_with_audio_paths(self, audio_path):
-        tracks = utils.load('/projects/dsci410_510/Kolahi_dataset/audio_data/fma_small/tracks.csv')
+        tracks = utils.load('/projects/dsci410_510/Kolahi_data_temp/fma_metadata/tracks.csv')
         small = tracks[tracks['set', 'subset'] <= 'small']
         
-        artist_location_dict = {}
+        self.artist_location_dict = {}
         for track_id, artist in small['artist'].iterrows():
             lat = artist['latitude']
             lon = artist['longitude']
             if pd.notna(lat) and pd.notna(lon):
-                artist_location_dict[track_id] = (lat, lon)
+                self.artist_location_dict[track_id] = (lat, lon)
 
-        audio_paths = []
-        for track_id, coordinates in artist_location_dict.items():
-            audio_path = utils.get_audio_path('/Users/cyruskolahi/Documents/372:410 VENV/DL project/data/fma_small', track_id)
-            audio_paths.append(audio_path)
+        self.audio_paths = []
+        for track_id, coordinates in self.artist_location_dict.items():
+            #coordinates = coordinates.split(',')
+            #latitude = coordinates[0]
+            #longitude = coordinates[1]
+            audio_path = utils.get_audio_path('/projects/dsci410_510/Kolahi_data_temp/fma_small', track_id)
+            self.audio_paths.append(audio_path)
         
-        return artist_location_dict
+        return self.artist_location_dict, self.audio_paths
 
 
     def get_country_from_coordinates(self, latitude, longitude, max_retries=3):
@@ -60,41 +67,40 @@ class AudioLocationParser:
                 print(f"Error for coordinates {latitude}, {longitude}: {str(e)}")
                 return "Error"
 
-    def parse_locations(self, coordinates_file, save_path=None, save_interval=10):
+    def parse_locations(self, coordinates_df, save_path=None, save_interval=10):
         """
         Parse coordinates file and get corresponding countries
         
         Args:
-            coordinates_file (str): Path to CSV with latitude/longitude coordinates
+            coordinates_df (pd.DataFrame): DataFrame with coordinates
             save_path (str): Path to save output CSV
             save_interval (int): How often to save progress
             
         Returns:
             pd.DataFrame: DataFrame with audio paths and countries
         """
-        # Load coordinates
-        df = pd.read_csv(coordinates_file)
         countries = []
+        processed_data = []
         
-        for i in range(len(df)):
-            latitude = df['latitude'][i]
-            longitude = df['longitude'][i]
-            print(f"Processing {i+1}/{len(df)}: {latitude}, {longitude}")
+        for i, (track_id, (latitude, longitude)) in enumerate(coordinates_df.items()):
+            print(f"Processing {i+1}/{len(coordinates_df)}: {latitude}, {longitude}")
             
             country = self.get_country_from_coordinates(latitude, longitude)
-            countries.append(country)
+            audio_path = self.audio_paths[i]
+            processed_data.append({'audio_path': audio_path, 'country': country})
             
             # Add delay between requests
             time.sleep(1)
             
-            # Save progress periodically
             if save_path and (i + 1) % save_interval == 0:
-                temp_df = df.copy()
-                temp_df['country'] = countries + [''] * (len(df) - len(countries))
+                temp_df = pd.DataFrame(processed_data, columns=['track_id', 'audio_path', 'country'])
                 temp_df.to_csv(save_path.replace('.csv', '_partial.csv'), index=False)
 
+            # Save progress periodically
+        
         # Create final dataframe
-        df['country'] = countries
+        df = pd.DataFrame(processed_data, columns=['track_id', 'audio_path', 'country'])
+
         
         # Save final results if path provided
         if save_path:
@@ -102,9 +108,9 @@ class AudioLocationParser:
             print(f"\nCompleted! Results saved to {save_path}")
             print(f"Successfully processed {len([c for c in countries if c != 'Timeout' and c != 'Error'])} locations")
 
-        return df[['audio_path', 'country']]
+        return df
 
-    def filter_and_balance_dataset(self, df, min_samples=10, target_samples=None):
+    def filter_and_balance_dataset(self, df, min_samples=30, target_samples=None):
         """
         Filter countries with minimum samples and optionally balance classes
         
@@ -138,7 +144,10 @@ class AudioLocationParser:
 
 def main():
     parser = AudioLocationParser()
-    parser.parse_locations('/projects/dsci410_510/Kolahi_dataset/audio_data/fma_small/tracks.csv', save_path='/projects/dsci410_510/Kolahi_dataset/audio_data/fma_small/tracks_with_countries.csv')
-    parser.filter_and_balance_dataset('/projects/dsci410_510/Kolahi_dataset/audio_data/fma_small/tracks_with_countries.csv', min_samples=10, target_samples=10)
+    artist_location_dict, audio_paths = parser.get_coordinates_with_audio_paths('/projects/dsci410_510/Kolahi_data_temp/fma_metadata/tracks.csv')
+    paths_w_countries = parser.parse_locations(artist_location_dict, save_path='/projects/dsci410_510/Kolahi_data_temp/temp_tracks_with_countries.csv')
+    balanced_df = parser.filter_and_balance_dataset(paths_w_countries, min_samples=30, target_samples=30)
+    balanced_df.to_csv('/projects/dsci410_510/Kolahi_data_temp/tracks_with_countries.csv', index=False)
+
 if __name__ == "__main__":
     main()
