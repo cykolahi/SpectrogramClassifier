@@ -1,6 +1,10 @@
 import pytorch_lightning as pl
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from model.model import SpectrogramCNN
+import pickle 
+import numpy as np
+import pandas as pd
+from official_data_loader import AudioDataLoader, AudioDataset
 
 def train_model(train_loader, val_loader, test_loader, num_classes, max_epochs=10):
     # Initialize model
@@ -19,7 +23,7 @@ def train_model(train_loader, val_loader, test_loader, num_classes, max_epochs=1
     )
     
     # Train model
-    trainer.fit(model, train_loader, val_loader, callbacks=[early_stopping])
+    trainer.fit(model, train_loader, val_loader)
     
     # Test model
     trainer.test(model, test_loader)
@@ -28,23 +32,28 @@ def train_model(train_loader, val_loader, test_loader, num_classes, max_epochs=1
 
 
 def main():
-    # Example usage
-    from official_data_loader import AudioDataLoader
-    #data_loader = AudioDataLoader(data_path='/Users/cyruskolahi/Documents/SpectrogramClassifier/data/audio_paths_with_countries.csv')
-    data_loader.load_data()  # Load and preprocess the data first
-    data_loader.balance_dataset()  # Balance if needed
-    data_loader.create_expanded_dataset()  # Now create the expanded dataset
+    unloaded_data_path = '/projects/dsci410_510/Kolahi_data_temp/expanded_dataset_v9.pkl'
+    train_data_path = '/projects/dsci410_510/Kolahi_data_temp/train_dataset.pkl'
+    val_data_path = '/projects/dsci410_510/Kolahi_data_temp/val_dataset.pkl'
+    test_data_path = '/projects/dsci410_510/Kolahi_data_temp/test_dataset.pkl'
+
+    # Load data
+    train_data = pickle.load(open(train_data_path, 'rb'))
+    val_data = pickle.load(open(val_data_path, 'rb'))
+    test_data = pickle.load(open(test_data_path, 'rb'))
+
+    #print(len(np.unique(train_data['countries'])))
+    #print(len(np.unique(val_data['countries'])))
+    #print(len(np.unique(test_data['countries'])))
+    # or
+    data_loader = AudioDataLoader(unloaded_data_path)
     train_loader, val_loader, test_loader = data_loader.create_train_val_test_split()
-    #data_loader.save_dataset('data/expanded_dataset_v6.pkl', format='pkl')
     
-    # Get data loaders
-    #train_loader, test_loader, val_loader = get_data_loaders()
     
-    # Assuming you have 10 classes, modify this based on your dataset
-    num_classes = 24
+    num_classes = len(np.unique(train_data['countries']))
     
     # Train the model
-    model = train_model(train_loader, val_loader, test_loader, num_classes) 
+    model = train_model(train_data, val_data, test_data, num_classes) 
 
 if __name__ == "__main__":
     main()

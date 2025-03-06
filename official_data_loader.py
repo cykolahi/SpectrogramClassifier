@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader
 from sklearn.model_selection import train_test_split
 import pickle
-from torch.utils import DataLoader
+#from torch.utils import DataLoader
 #import h5py
 
 class AudioDataset(Dataset):
@@ -102,7 +102,7 @@ class AudioDataLoader():
         
         return train_loader, val_loader, test_loader
 
-def save_dataset(df, save_path, format='pkl'):
+def save_dataset(data, save_path, format='pkl'):
         """
         Save the expanded dataset.
         
@@ -110,31 +110,35 @@ def save_dataset(df, save_path, format='pkl'):
             save_path (str): Path to save the dataset
             format (str): Format to save in ('pkl' or 'h5')
         """
+        if isinstance(data, DataLoader):
+            df = data.dataset.df
+        else:
+            df = data
         if format == 'pkl':
             with open(save_path, 'wb') as f:
                 pickle.dump({
-                    'audio_paths': self.expanded_df['audio_path'].values,
-                    'countries': self.expanded_df['country'].values,
-                    'segment_numbers': self.expanded_df['segment_number'].values,
-                    'spectrograms': [s for s in self.expanded_df['spectrogram'].values]
+                    'audio_paths': df['audio_path'].values,
+                    'countries': df['country'].values,
+                    'segment_numbers': df['segment_number'].values,
+                    'spectrograms': [s for s in df['spectrogram'].values]
                 }, f)
         
         elif format == 'h5':
             # Get shapes for spectrograms only
-            spec_shapes = [s.shape for s in self.expanded_df['spectrogram'].values]
+            spec_shapes = [s.shape for s in df['spectrogram'].values]
             max_spec_shape = tuple(max(dim) for dim in zip(*spec_shapes))
             
             # Create padded array for spectrograms
-            specs_padded = np.zeros((len(self.expanded_df), *max_spec_shape))
+            specs_padded = np.zeros((len(df), *max_spec_shape))
             
             # Fill padded array
-            for i, spec in enumerate(self.expanded_df['spectrogram'].values):
+            for i, spec in enumerate(df['spectrogram'].values):
                 specs_padded[i, :spec.shape[0], :spec.shape[1]] = spec
                 
             with h5py.File(save_path, 'w') as f:
-                f.create_dataset('audio_paths', data=self.expanded_df['audio_path'].values.astype('S'))
-                f.create_dataset('countries', data=self.expanded_df['country'].values.astype('S'))
-                f.create_dataset('segment_numbers', data=self.expanded_df['segment_number'].values)
+                f.create_dataset('audio_paths', data=df['audio_path'].values.astype('S'))
+                f.create_dataset('countries', data=df['country'].values.astype('S'))
+                f.create_dataset('segment_numbers', data=df['segment_number'].values)
                 f.create_dataset('spectrograms', data=specs_padded)
 
 

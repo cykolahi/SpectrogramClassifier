@@ -10,10 +10,10 @@
 #SBATCH --mem-per-cpu=4G
 
 module load miniconda3/20240410
-conda activate dlproject_v3
+conda activate dlproject_v4
 
 #python train_model.py
-python official_data_parser.py
+srun python train_model.py
 
 
 
