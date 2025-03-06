@@ -12,15 +12,28 @@ class AudioDataset(Dataset):
     """Custom Dataset class for audio spectrograms"""
     def __init__(self, df):
         self.df = df
+        self.country_to_idx = {country: idx for idx, country in enumerate(sorted(df['country'].unique()))}
+
         
     def __len__(self):
         return len(self.df)
     
     def __getitem__(self, idx):
         # Convert spectrogram to tensor and add channel dimension
-        spectrogram = torch.FloatTensor(self.df.iloc[idx]['spectrogram']).unsqueeze(0)
+        # Get spectrogram and resize to standard dimensions (e.g. 128x776)
+        spectrogram = torch.FloatTensor(self.df.iloc[idx]['spectrogram'])
+        target_size = (128, 776)  # Standard size
+        if len(spectrogram.shape) == 2:  # If 2D
+            # Resize using interpolate
+            spectrogram = torch.nn.functional.interpolate(
+                spectrogram.unsqueeze(0).unsqueeze(0),  # Add batch and channel dims
+                size=target_size,
+                mode='bilinear',
+                align_corners=False
+            ).squeeze(0)  # Remove batch dim but keep channel dim
         # Get label (you might want to convert country to numerical label here)
-        label = self.df.iloc[idx]['country']
+        country = self.df.iloc[idx]['country']
+        label = torch.tensor(self.country_to_idx[country])
         
         
         return spectrogram, label

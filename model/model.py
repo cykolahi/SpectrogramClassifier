@@ -27,15 +27,18 @@ class SpectrogramCNN(pl.LightningModule):
         self.dropout2 = nn.Dropout(0.25)
         
         # Third Convolutional Block
-        self.conv3 = nn.Conv2d(64, 128, kernel_size=3, stride=1, padding=1)
-        self.bn3 = nn.BatchNorm2d(128)
+        self.conv3 = nn.Conv2d(64, 32, kernel_size=3, stride=1, padding=1)
+        self.bn3 = nn.BatchNorm2d(32)
         self.pool3 = nn.MaxPool2d(kernel_size=2)
         self.dropout3 = nn.Dropout(0.25)
+
+        # Add Global Average Pooling
+        self.global_pool = nn.AdaptiveAvgPool2d((1, 1))
 
         # Calculate the size after convolutions and pooling
         # Original: 128x776
         # After 3 max-pooling layers: 16x97 (rounded down)
-        self.fc1 = nn.Linear(128 * 16 * 97, 512)
+        self.fc1 = nn.Linear(32, 512)
         self.dropout4 = nn.Dropout(0.5)
         self.fc2 = nn.Linear(512, num_classes)
 
@@ -43,7 +46,33 @@ class SpectrogramCNN(pl.LightningModule):
         x, y = batch
         y_hat = self(x)
         loss = F.cross_entropy(y_hat, y)
+        self.log('train_loss', loss)
         return loss
+    
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        logits = self(x)
+        loss = F.cross_entropy(logits, y)
+        preds = torch.argmax(logits, dim=1)
+        acc = (preds == y).float().mean()
+        
+        # Log metrics
+        self.log('val_loss', loss)
+        self.log('val_acc', acc)
+        return {'val_loss': loss, 'val_acc': acc}
+    
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        logits = self(x)
+        loss = F.cross_entropy(logits, y)
+        preds = torch.argmax(logits, dim=1)
+        acc = (preds == y).float().mean()
+        
+        # Log metrics
+        self.log('test_loss', loss)
+        self.log('test_acc', acc)
+        return {'test_loss': loss, 'test_acc': acc}
+        
 
     def configure_optimizers(self):
         return torch.optim.Adam(self.parameters(), lr=1e-3)
@@ -64,8 +93,10 @@ class SpectrogramCNN(pl.LightningModule):
         x = self.pool3(x)
         x = self.dropout3(x)
         
-        # Flatten and feed through fully connected layers
+        # Global average pooling
+        x = self.global_pool(x)
         x = x.view(x.size(0), -1)
+        
         x = F.relu(self.fc1(x))
         x = self.dropout4(x)
         x = self.fc2(x)

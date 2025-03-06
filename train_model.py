@@ -23,8 +23,9 @@ def train_model(train_loader, val_loader, test_loader, num_classes, max_epochs=1
     )
     
     # Train model
-    trainer.fit(model, train_loader, val_loader)
-    
+    trainer.fit(model, train_loader)
+
+    trainer.validate(model, val_loader)
     # Test model
     trainer.test(model, test_loader)
     
@@ -53,7 +54,7 @@ def main():
     num_classes = len(np.unique(train_data['countries']))
     
     # Train the model
-    model = train_model(train_data, val_data, test_data, num_classes) 
+    model = train_model(train_loader, val_loader, test_loader, num_classes) 
 
 if __name__ == "__main__":
     main()
