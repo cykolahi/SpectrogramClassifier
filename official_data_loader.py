@@ -13,28 +13,28 @@ class AudioDataset(Dataset):
     def __init__(self, df):
         self.df = df
         self.country_to_idx = {country: idx for idx, country in enumerate(sorted(df['country'].unique()))}
-
         
+        # Calculate dataset statistics
+        all_specs = np.stack(df['spectrogram'].values)
+        self.global_mean = np.mean(all_specs)
+        self.global_std = np.std(all_specs)
+
     def __len__(self):
         return len(self.df)
     
     def __getitem__(self, idx):
-        # Convert spectrogram to tensor and add channel dimension
-        # Get spectrogram and resize to standard dimensions (e.g. 128x776)
+        # Get spectrogram and convert to tensor
         spectrogram = torch.FloatTensor(self.df.iloc[idx]['spectrogram'])
-        target_size = (128, 776)  # Standard size
-        if len(spectrogram.shape) == 2:  # If 2D
-            # Resize using interpolate
-            spectrogram = torch.nn.functional.interpolate(
-                spectrogram.unsqueeze(0).unsqueeze(0),  # Add batch and channel dims
-                size=target_size,
-                mode='bilinear',
-                align_corners=False
-            ).squeeze(0)  # Remove batch dim but keep channel dim
-        # Get label (you might want to convert country to numerical label here)
+        
+        # Use global normalization
+        spectrogram = (spectrogram - self.global_mean) / (self.global_std + 1e-6)
+        
+        # Add channel dimension
+        spectrogram = spectrogram.unsqueeze(0)  # Shape becomes (1, 128, 768)
+        
+        # Get label
         country = self.df.iloc[idx]['country']
         label = torch.tensor(self.country_to_idx[country])
-        
         
         return spectrogram, label
 
@@ -58,7 +58,7 @@ class AudioDataLoader():
         # Let the user call it explicitly when needed
     
     
-    def create_train_val_test_split(self, test_size=0.2, random_state=42, batch_size=32):
+    def create_train_val_test_split(self, test_size=0.2, random_state=42, batch_size=16):
         """
         Create stratified train/test splits and return DataLoaders.
         
@@ -91,21 +91,25 @@ class AudioDataLoader():
         # Create DataLoader objects
         train_loader = DataLoader(
             train_dataset, 
-            batch_size=batch_size, 
+            batch_size=16, 
             shuffle=True,
-            num_workers=4
+            num_workers=1,
+            pin_memory=True,
+            persistent_workers=True
         )
         val_loader = DataLoader(
             val_dataset, 
             batch_size=batch_size, 
             shuffle=False,
-            num_workers=4
+            num_workers=1,
+            pin_memory=False
         )
         test_loader = DataLoader(
             test_dataset, 
             batch_size=batch_size, 
             shuffle=False,
-            num_workers=4
+            num_workers=1,
+            pin_memory=False
         )
         
         print(f"\nDataset split complete:")
