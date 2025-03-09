@@ -14,26 +14,37 @@ class AudioDataset(Dataset):
         self.df = df
         self.country_to_idx = {country: idx for idx, country in enumerate(sorted(df['country'].unique()))}
         
-        # Calculate dataset statistics
+          # Calculate dataset statistics
         all_specs = np.stack(df['spectrogram'].values)
         self.global_mean = np.mean(all_specs)
         self.global_std = np.std(all_specs)
+
+        # Calculate per-country statistics
+        #self.country_stats = {}
+        #for country in self.country_to_idx.keys():
+        #    country_specs = np.stack(df[df['country'] == country]['spectrogram'].values)
+         #   self.country_stats[country] = {
+         #       'mean': np.mean(country_specs),
+         #       'std': np.std(country_specs) + 1e-6
+         #   }
 
     def __len__(self):
         return len(self.df)
     
     def __getitem__(self, idx):
-        # Get spectrogram and convert to tensor
+        # Get spectrogram and country
         spectrogram = torch.FloatTensor(self.df.iloc[idx]['spectrogram'])
+        country = self.df.iloc[idx]['country']
         
-        # Use global normalization
+        # Normalize using global statistics
         spectrogram = (spectrogram - self.global_mean) / (self.global_std + 1e-6)
+        # Normalize using country-specific statistics
+        #spectrogram = (spectrogram - self.country_stats[country]['mean']) / self.country_stats[country]['std']
         
         # Add channel dimension
         spectrogram = spectrogram.unsqueeze(0)  # Shape becomes (1, 128, 768)
         
         # Get label
-        country = self.df.iloc[idx]['country']
         label = torch.tensor(self.country_to_idx[country])
         
         return spectrogram, label
@@ -93,7 +104,7 @@ class AudioDataLoader():
             train_dataset, 
             batch_size=16, 
             shuffle=True,
-            num_workers=1,
+            num_workers=3,
             pin_memory=True,
             persistent_workers=True
         )
@@ -101,14 +112,14 @@ class AudioDataLoader():
             val_dataset, 
             batch_size=batch_size, 
             shuffle=False,
-            num_workers=1,
+            num_workers=3,
             pin_memory=False
         )
         test_loader = DataLoader(
             test_dataset, 
             batch_size=batch_size, 
             shuffle=False,
-            num_workers=1,
+            num_workers=3,
             pin_memory=False
         )
         

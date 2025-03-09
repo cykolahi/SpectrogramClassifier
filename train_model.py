@@ -61,7 +61,7 @@ def train_model(train_loader, val_loader, test_loader, num_classes, max_epochs=1
     # Initialize callbacks
     early_stopping = EarlyStopping(
         monitor='val_loss',
-        patience=10,
+        patience=5,
         mode='min'
     )
     
@@ -123,7 +123,18 @@ def main():
     # Train the model
     model = train_model(train_loader, val_loader, test_loader, num_classes) 
 
-    torch.save(model, 'model_v1.pth')
+    # Create the directory if it doesn't exist
+    save_dir = 'SpectrogramClassifier/models'
+    os.makedirs(save_dir, exist_ok=True)
+    
+    # Save the model with error handling
+    try:
+        save_path = os.path.join(save_dir, 'model_v1.pth')
+        torch.save(model.state_dict(), save_path)
+        print(f"Model successfully saved to: {save_path}")
+    except Exception as e:
+        print(f"Error saving model: {e}")
+        print(f"Current working directory: {os.getcwd()}")
 
 if __name__ == "__main__":
     main()

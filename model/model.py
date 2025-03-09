@@ -105,7 +105,7 @@ class SpectrogramCNN(pl.LightningModule):
             optimizer,
             mode='min',
             factor=0.1,
-            patience=5,
+            patience=10,
             verbose=True
         )
         
@@ -121,15 +121,15 @@ class SpectrogramCNN(pl.LightningModule):
 
     def forward(self, x):
         # Regular convolution path
-        x = F.leaky_relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.bn1(self.conv1(x)))
         x = self.pool1(x)
         x = self.dropout1(x)
         
-        x = F.leaky_relu(self.bn2(self.conv2(x)))
+        x = F.relu(self.bn2(self.conv2(x)))
         x = self.pool2(x)
         x = self.dropout2(x)
         
-        x = F.leaky_relu(self.bn3(self.conv3(x)))
+        x = F.relu(self.bn3(self.conv3(x)))
         x = self.pool3(x)
         x = self.dropout3(x)
         
@@ -143,7 +143,7 @@ class SpectrogramCNN(pl.LightningModule):
         x = self.global_time_pool(x)  # Then pool time
         x = x.view(x.size(0), -1)
         
-        x = F.leaky_relu(self.fc1(x))
+        x = F.relu(self.fc1(x))
         x = self.dropout4(x)
         x = self.fc2(x)
         
