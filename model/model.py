@@ -505,7 +505,7 @@ class SpectrogramCNN_2d_attn(pl.LightningModule):
         # Increase initial filters and add residual connections
         self.conv1 = nn.Conv2d(1, 64, kernel_size=3, stride=1, padding=1)
         self.bn1 = nn.BatchNorm2d(64)
-        self.pool1 = nn.MaxPool2d(kernel_size=(2, 4))
+        self.pool1 = nn.MaxPool2d(kernel_size=(2, 2))
         self.dropout1 = nn.Dropout(0.3)
 
         # First attention block
@@ -518,9 +518,9 @@ class SpectrogramCNN_2d_attn(pl.LightningModule):
         )
         
         # Deeper network with wider temporal context
-        self.conv2 = nn.Conv2d(64, 128, kernel_size=(3, 9), stride=1, padding=(1, 4))
+        self.conv2 = nn.Conv2d(64, 128, kernel_size=(3, 5), stride=1, padding=(1, 2))
         self.bn2 = nn.BatchNorm2d(128)
-        self.pool2 = nn.MaxPool2d(kernel_size=(2, 4))
+        self.pool2 = nn.MaxPool2d(kernel_size=(2, 2))
         self.dropout2 = nn.Dropout(0.3)
 
         # Second attention block
@@ -532,9 +532,9 @@ class SpectrogramCNN_2d_attn(pl.LightningModule):
             nn.Softmax(dim=1)
         )
         
-        self.conv3 = nn.Conv2d(128, 128, kernel_size=(3, 15), stride=1, padding=(1, 7))
+        self.conv3 = nn.Conv2d(128, 128, kernel_size=(3, 7), stride=1, padding=(1, 3))
         self.bn3 = nn.BatchNorm2d(128)
-        self.pool3 = nn.MaxPool2d(kernel_size=(2, 4))
+        self.pool3 = nn.MaxPool2d(kernel_size=(2, 2))
         self.dropout3 = nn.Dropout(0.3)
 
         # Third attention block

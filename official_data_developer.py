@@ -49,7 +49,7 @@ class AudioDataDeveloper():
         print(f"len(self.df['country'].unique()): {len(self.df['country'].unique())}")
         return self.df
     
-    def balance_dataset(self, random_state=41):
+    def balance_dataset(self, random_state=40):
         """
         Balance the dataset by downsampling majority classes.
         
@@ -93,8 +93,8 @@ class AudioDataDeveloper():
             end = start + segment_length
             segment = x[start:end]
             # Add augmentation
-            if np.random.random() < 0.5:  # 50% chance of pitch shift
-                segment = librosa.effects.pitch_shift(segment, sr=sr, n_steps=np.random.uniform(-2, 2))
+            #if np.random.random() < 0.3:  # 30% chance of pitch shift
+                #segment = librosa.effects.pitch_shift(segment, sr=sr, n_steps=np.random.uniform(-2, 2))
             
             stft = np.abs(librosa.stft(segment, n_fft=2048, hop_length=512))
             mel = librosa.feature.melspectrogram(
@@ -105,14 +105,14 @@ class AudioDataDeveloper():
                 fmax=8000
             )
             log_mel = librosa.power_to_db(mel, ref=np.max)
-            
             # Ensure consistent shape
-            if log_mel.shape[1] > 512:  # Adjust target width for 5-second clips
-                log_mel = log_mel[:, :512]
-            elif log_mel.shape[1] < 512:
-                pad_width = ((0, 0), (0, 512 - log_mel.shape[1]))
-                log_mel = np.pad(log_mel, pad_width, mode='constant')
-            
+            #if log_mel.shape[1] > 512:  # Adjust target width for 5-second clips
+                #log_mel = log_mel[:, :512]
+            #elif log_mel.shape[1] < 510:  # Skip segments that are too short
+                #continue
+            #elif log_mel.shape[1] < 512:  # Pad segments between 510-512
+                #pad_width = ((0, 0), (0, 512 - log_mel.shape[1]))
+                #log_mel = np.pad(log_mel, pad_width, mode='constant')
             segments.append(log_mel)
         
         return segments
@@ -182,11 +182,9 @@ def main():
     data_developer.load_data()
     data_developer.balance_dataset()
     data_developer.create_expanded_dataset()
-    data_developer.save_dataset('/projects/dsci410_510/Kolahi_data_temp/expanded_dataset_v15.pkl')
+    data_developer.save_dataset('/projects/dsci410_510/Kolahi_data_temp/expanded_dataset_v16.pkl')
 
-    with open('/projects/dsci410_510/Kolahi_data_temp/expanded_dataset_v14.pkl', 'rb') as f:
-        expanded_df = pickle.load(f)
-    data_developer.examine_dataset()
+    #data_developer.examine_dataset()
     data_developer.analyze_spectrogram_shapes()
 if __name__ == "__main__":
     main()

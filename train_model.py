@@ -43,7 +43,7 @@ class MetricsCallback(Callback):
 
 
 class DataReloaderCallback(Callback):
-    def __init__(self, data_path, reload_every_n_epochs=20):
+    def __init__(self, data_path, reload_every_n_epochs=10):
         super().__init__()
         self.data_path = data_path
         self.reload_every_n_epochs = reload_every_n_epochs
@@ -74,7 +74,9 @@ def train_model(train_loader, val_loader, test_loader, num_classes, max_epochs=6
     #print(f"Using GPU: {torch.cuda.get_device_name(0)}")
 
     
-    model = SpectrogramCNN_2d_attn(num_classes=3)
+    model = SpectrogramCNN_1d_attn(num_classes=3)
+
+
     # Setup logging
     logger = logging.getLogger('train')
     log_dir = os.path.join(os.getcwd(), 'logs', 'runs')
@@ -138,7 +140,7 @@ def train_model(train_loader, val_loader, test_loader, num_classes, max_epochs=6
 
 
 def main():
-    unloaded_data_path = '/projects/dsci410_510/Kolahi_data_temp/expanded_dataset_v15.pkl'
+    unloaded_data_path = '/projects/dsci410_510/Kolahi_data_temp/expanded_dataset_v16.pkl'
     
     # Load data
     data = pickle.load(open(unloaded_data_path, 'rb'))
@@ -169,7 +171,7 @@ def main():
     
     # Save the model with error handling
     try:
-        save_path = os.path.join(save_dir, 'model_v5.pth')
+        save_path = os.path.join(save_dir, 'model_v8.pth')
         torch.save(model.state_dict(), save_path)
         print(f"Model successfully saved to: {save_path}")
     except Exception as e:
