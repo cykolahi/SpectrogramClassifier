@@ -141,6 +141,38 @@ class AudioLocationParser:
             df = balanced_df.reset_index(drop=True)
             
         return df
+    
+def filter_and_kinda_balance_dataset(self, df, min_samples=30, target_samples=None):
+        """
+        Filter countries with minimum samples and optionally balance classes
+        
+        Args:
+            df (pd.DataFrame): DataFrame with audio_path and country columns
+            min_samples (int): Minimum samples required per country
+            target_samples (int): Target number of samples per country for balancing
+            
+        Returns:
+            pd.DataFrame: Filtered and balanced DataFrame
+        """
+        # Remove error/unknown countries
+        df = df[~df['country'].isin(['Error', 'Unknown', 'Timeout'])]
+        
+        # Filter countries with minimum samples
+        country_counts = df['country'].value_counts()
+        valid_countries = country_counts[country_counts >= min_samples].index
+        df = df[df['country'].isin(valid_countries)]
+        
+        # Balance dataset if target_samples specified
+        if target_samples:
+            balanced_df = pd.DataFrame()
+            for country in df['country'].unique():
+                country_data = df[df['country'] == country]
+                if len(country_data) > target_samples:
+                    country_data = country_data.sample(n=target_samples, random_state=42)
+                balanced_df = pd.concat([balanced_df, country_data])
+            df = balanced_df.reset_index(drop=True)
+            
+        return df
 
 def main():
     parser = AudioLocationParser()

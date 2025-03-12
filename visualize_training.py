@@ -4,11 +4,11 @@ import os
 
 # Print current directory and available files for debugging
 print("Current directory:", os.getcwd())
-print("Available files in lightning_logs/version_22/:", os.listdir('lightning_logs/version_16/') if os.path.exists('lightning_logs/version_16/') else "Directory not found")
+print("Available files in lightning_logs/version_116/:", os.listdir('lightning_logs/version_31/') if os.path.exists('lightning_logs/version_31/') else "Directory not found")
 
 try:
     # Try to read the metrics file
-    df = pd.read_csv('lightning_logs/version_16/metrics.csv')
+    df = pd.read_csv('lightning_logs/version_116/metrics.csv')
     print("Data loaded successfully. Shape:", df.shape)
     
     # Group by epoch and calculate mean of losses
@@ -38,8 +38,8 @@ try:
     plt.grid(True, linestyle='--', alpha=0.7)
     
     # Save the plot
-    plt.savefig('SpectrogramClassifier/loss_plots/training_plot1.png')
-    print("Plot saved as training_plot1.png")
+    plt.savefig('SpectrogramClassifier/loss_plots/training_plot116_CNN_attention.png')
+    print("Plot saved as training_plot116_CNN_attention.png")
     plt.show()
 
 except FileNotFoundError as e:

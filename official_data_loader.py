@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import librosa
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import Dataset, DataLoader, TensorDataset
 from sklearn.model_selection import train_test_split
 import pickle
 #from torch.utils import DataLoader
@@ -10,8 +10,9 @@ import pickle
 
 class AudioDataset(Dataset):
     """Custom Dataset class for audio spectrograms"""
-    def __init__(self, df):
+    def __init__(self, df, transform=True):
         self.df = df
+        self.transform = transform
         self.country_to_idx = {country: idx for idx, country in enumerate(sorted(df['country'].unique()))}
         
           # Calculate dataset statistics
@@ -32,19 +33,31 @@ class AudioDataset(Dataset):
         return len(self.df)
     
     def __getitem__(self, idx):
-        # Get spectrogram and country
         spectrogram = torch.FloatTensor(self.df.iloc[idx]['spectrogram'])
         country = self.df.iloc[idx]['country']
         
-        # Normalize using global statistics
-        spectrogram = (spectrogram - self.global_mean) / (self.global_std + 1e-6)
         # Normalize using country-specific statistics
-        #spectrogram = (spectrogram - self.country_stats[country]['mean']) / self.country_stats[country]['std']
+        #spectrogram = (spectrogram - spectrogram.mean()) / (spectrogram.std() + 1e-6)
         
-        # Add channel dimension
-        spectrogram = spectrogram.unsqueeze(0)  # Shape becomes (1, 128, 768)
-        
-        # Get label
+                # Normalize using global statistics
+        spectrogram = (spectrogram - self.global_mean) / (self.global_std + 1e-6)
+
+        # Data augmentation during training
+        if self.transform:
+            # Random time masking
+            if torch.rand(1) < 0.5:
+                time_mask_param = int(spectrogram.shape[1] * 0.1)
+                # Librosa doesn't have a direct time masking equivalent, so we'll implement it manually
+                mask_start = np.random.randint(0, spectrogram.shape[1] - time_mask_param)
+                spectrogram[:, mask_start:mask_start + time_mask_param] = 0
+            
+            # Random frequency masking
+            if torch.rand(1) < 0.5:
+                freq_mask_param = int(spectrogram.shape[0] * 0.1)
+                # Manually implement frequency masking
+                mask_start = np.random.randint(0, spectrogram.shape[0] - freq_mask_param)
+                spectrogram[mask_start:mask_start + freq_mask_param, :] = 0
+        spectrogram = spectrogram.unsqueeze(0)
         label = torch.tensor(self.country_to_idx[country])
         
         return spectrogram, label
@@ -69,7 +82,7 @@ class AudioDataLoader():
         # Let the user call it explicitly when needed
     
     
-    def create_train_val_test_split(self, test_size=0.2, random_state=42, batch_size=16):
+    def create_train_val_test_split(self, random_state=42, batch_size=16):
         """
         Create stratified train/test splits and return DataLoaders.
         
@@ -95,10 +108,40 @@ class AudioDataLoader():
         )   
 
         # Create Dataset objects
-        train_dataset = AudioDataset(train_df)
-        val_dataset = AudioDataset(val_df)
-        test_dataset = AudioDataset(test_df)
+        train_dataset = AudioDataset(train_df, transform=True)
+        val_dataset = AudioDataset(val_df, transform=True)
+        test_dataset = AudioDataset(test_df, transform=True)
 
+        """
+        for i in range(len(train_dataset)):
+            # Get and process each sample using AudioDataset's __getitem__
+            spectrogram, label = train_dataset[i]
+            
+            # Verify the sample was processed correctly
+            if spectrogram is None or label is None:
+                print(f"Warning: Sample {i} failed to load")
+                continue
+                
+            # Store processed samples back in dataset
+            train_dataset[i] = spectrogram
+            train_dataset[i] = label
+
+        for i in range(len(val_dataset)):
+            spectrogram, label = val_dataset[i]
+            if spectrogram is None or label is None:
+                print(f"Warning: Sample {i} failed to load")
+                continue
+            val_dataset.spectrograms[i] = spectrogram
+            val_dataset.labels[i] = label
+
+        for i in range(len(test_dataset)):
+            spectrogram, label = test_dataset[i]
+            if spectrogram is None or label is None:
+                print(f"Warning: Sample {i} failed to load")
+                continue
+            test_dataset.spectrograms[i] = spectrogram
+            test_dataset.labels[i] = label
+        """
         # Create DataLoader objects
         train_loader = DataLoader(
             train_dataset, 
@@ -170,12 +213,12 @@ def save_dataset(data, save_path, format='pkl'):
                 f.create_dataset('spectrograms', data=specs_padded)
 
 
-def main():
-    data_loader = AudioDataLoader(data_path='/projects/dsci410_510/Kolahi_data_temp/expanded_dataset_v9.pkl')
-    train_loader, val_loader, test_loader = data_loader.create_train_val_test_split()
-    save_dataset(train_loader, '/projects/dsci410_510/Kolahi_data_temp/train_dataset.pkl')
-    save_dataset(val_loader, '/projects/dsci410_510/Kolahi_data_temp/val_dataset.pkl')
-    save_dataset(test_loader, '/projects/dsci410_510/Kolahi_data_temp/test_dataset.pkl')
+#def main():
+#    data_loader = AudioDataLoader(data_path='/projects/dsci410_510/Kolahi_data_temp/expanded_dataset_v11.pkl')
+#    train_loader, val_loader, test_loader = data_loader.create_train_val_test_split()
+#    save_dataset(train_loader, '/projects/dsci410_510/Kolahi_data_temp/train_dataset.pkl')
+  #  save_dataset(val_loader, '/projects/dsci410_510/Kolahi_data_temp/val_dataset.pkl')
+    #save_dataset(test_loader, '/projects/dsci410_510/Kolahi_data_temp/test_dataset.pkl')
 
-if __name__ == "__main__":
-    main()
+#if __name__ == "__main__":
+#    main()

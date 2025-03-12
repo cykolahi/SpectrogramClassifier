@@ -49,7 +49,7 @@ class AudioDataDeveloper():
         print(f"len(self.df['country'].unique()): {len(self.df['country'].unique())}")
         return self.df
     
-    def balance_dataset(self, random_state=42):
+    def balance_dataset(self, random_state=41):
         """
         Balance the dataset by downsampling majority classes.
         
@@ -60,8 +60,8 @@ class AudioDataDeveloper():
         balanced_df = pd.DataFrame()
         for country in self.df['country'].unique():
             country_data = self.df[self.df['country'] == country]
-            if len(country_data) >= self.min_samples_per_country:
-                country_data = country_data.sample(n=self.min_samples_per_country, random_state=random_state)
+            if len(country_data) > self.min_samples_per_country:
+                country_data = country_data.sample(n=self.min_samples_per_country+30, random_state=random_state)
             balanced_df = pd.concat([balanced_df, country_data])
             
         self.df = balanced_df.reset_index(drop=True)
@@ -80,10 +80,10 @@ class AudioDataDeveloper():
             file_path (str): Path to audio file
             
         Returns:
-           list of segments
+           list of audio segments as log-mel spectrograms
         """
-        x, sr = librosa.load(file_path, sr=None, mono=True)
-        segment_length = 9 * sr
+        x, sr = librosa.load(file_path, sr=22050, mono=True)  # Fix sample rate
+        segment_length = 5 * sr  # Reduce from 9 to 5 seconds
         segments = []
         
         num_segments = int(len(x) // segment_length)
@@ -92,18 +92,28 @@ class AudioDataDeveloper():
             start = i * segment_length
             end = start + segment_length
             segment = x[start:end]
+            # Add augmentation
+            if np.random.random() < 0.5:  # 50% chance of pitch shift
+                segment = librosa.effects.pitch_shift(segment, sr=sr, n_steps=np.random.uniform(-2, 2))
+            
             stft = np.abs(librosa.stft(segment, n_fft=2048, hop_length=512))
-            mel = librosa.feature.melspectrogram(sr=sr, S=stft**2)
+            mel = librosa.feature.melspectrogram(
+                sr=sr, 
+                S=stft**2,
+                n_mels=128,
+                fmin=20,
+                fmax=8000
+            )
             log_mel = librosa.power_to_db(mel, ref=np.max)
-            # Ensure spectrogram shape is (128, 768) by truncating if needed
-            if log_mel.shape[1] > 768:
-                log_mel = log_mel[:, :768]
-            elif log_mel.shape[1] < 768:
-                # Pad with zeros if too short (shouldn't happen with 9 second segments)
-                pad_width = ((0, 0), (0, 768 - log_mel.shape[1]))
+            
+            # Ensure consistent shape
+            if log_mel.shape[1] > 512:  # Adjust target width for 5-second clips
+                log_mel = log_mel[:, :512]
+            elif log_mel.shape[1] < 512:
+                pad_width = ((0, 0), (0, 512 - log_mel.shape[1]))
                 log_mel = np.pad(log_mel, pad_width, mode='constant')
+            
             segments.append(log_mel)
-
         
         return segments
     
@@ -138,6 +148,7 @@ class AudioDataDeveloper():
         print(self.expanded_df.head())
         print(self.expanded_df['country'].value_counts())
 
+
     def analyze_spectrogram_shapes(self):
         """
         Analyze and print the shapes of spectrograms in the dataset
@@ -171,9 +182,9 @@ def main():
     data_developer.load_data()
     data_developer.balance_dataset()
     data_developer.create_expanded_dataset()
-    data_developer.save_dataset('/projects/dsci410_510/Kolahi_data_temp/expanded_dataset_v10.pkl')
+    data_developer.save_dataset('/projects/dsci410_510/Kolahi_data_temp/expanded_dataset_v15.pkl')
 
-    with open('/projects/dsci410_510/Kolahi_data_temp/expanded_dataset_v10.pkl', 'rb') as f:
+    with open('/projects/dsci410_510/Kolahi_data_temp/expanded_dataset_v14.pkl', 'rb') as f:
         expanded_df = pickle.load(f)
     data_developer.examine_dataset()
     data_developer.analyze_spectrogram_shapes()

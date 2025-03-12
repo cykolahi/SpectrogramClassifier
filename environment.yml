@@ -1,4 +1,4 @@
-name: dlproject_v4
+name: SpectrogramClassifierEnv
 channels:
   - pytorch
   - conda-forge
@@ -20,3 +20,9 @@ dependencies:
   - pip
   - pip:
     - aifc
+
+# run these terminal command within the project directory to create the environment:
+# module load miniconda3/20240410
+# conda env create -f environment.yml 
+# conda activate SpectrogramClassifierEnv
+
