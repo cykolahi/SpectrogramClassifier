@@ -14,42 +14,42 @@ class SpectrogramCNN_1d_attn(pl.LightningModule):
         super().__init__()
         
         # Feature extraction
-        self.conv1 = nn.Conv1d(128, 64, kernel_size=3, stride=1, padding=1)
-        self.bn1 = nn.BatchNorm1d(64)
+        self.conv1 = nn.Conv1d(128, 256, kernel_size=3, stride=1, padding=1)
+        self.bn1 = nn.BatchNorm1d(256)
         self.pool1 = nn.MaxPool1d(kernel_size=2)
 
         # First attention block after initial feature extraction
         self.attention1 = nn.Sequential(
-            nn.Conv1d(64, 64, kernel_size=1),
-            nn.BatchNorm1d(64),
+            nn.Conv1d(256, 256, kernel_size=1),
+            nn.BatchNorm1d(256),
             nn.ReLU(),
-            nn.Conv1d(64, 64, kernel_size=1),
+            nn.Conv1d(256, 256, kernel_size=1),
             nn.Softmax(dim=1)
         )
 
-        self.conv2 = nn.Conv1d(64, 128, kernel_size=3, stride=1, padding=1)
-        self.bn2 = nn.BatchNorm1d(128)
+        self.conv2 = nn.Conv1d(256, 512, kernel_size=3, stride=1, padding=1)
+        self.bn2 = nn.BatchNorm1d(512)
         self.pool2 = nn.MaxPool1d(kernel_size=2)
 
-        self.conv3 = nn.Conv1d(128, 64, kernel_size=3, stride=1, padding=1)
-        self.bn3 = nn.BatchNorm1d(64)
-        self.pool3 = nn.MaxPool1d(kernel_size=2)
+        self.conv3 = nn.Conv1d(512, 512, kernel_size=4, stride=1, padding=1)
+        self.bn3 = nn.BatchNorm1d(512)
+        self.pool3 = nn.MaxPool1d(kernel_size=3)
 
         # Second attention block before FC layers
         self.attention2 = nn.Sequential(
-            nn.Linear(64, 64),
+            nn.Linear(512, 512),
             nn.ReLU(),
-            nn.Linear(64, 64),
+            nn.Linear(512, 512),
             nn.Softmax(dim=1)
         )
 
         self.adaptive_pool = nn.AdaptiveAvgPool1d(1)
         
-        self.fc1 = nn.Linear(64, 32)
+        self.fc1 = nn.Linear(512, 256)
         self.dropout1 = nn.Dropout(0.3)
-        self.fc2 = nn.Linear(32, 16)
+        self.fc2 = nn.Linear(256, 256)
         self.dropout2 = nn.Dropout(0.3)
-        self.fc3 = nn.Linear(16, num_classes)
+        self.fc3 = nn.Linear(256, num_classes)
 
         self.criterion = nn.CrossEntropyLoss()
     
