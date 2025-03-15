@@ -10,7 +10,7 @@ import pickle
 
 class AudioDataset(Dataset):
     """Custom Dataset class for audio spectrograms"""
-    def __init__(self, df, transform=True):
+    def __init__(self, df, transform=False):
         self.df = df
         self.transform = transform
         self.country_to_idx = {country: idx for idx, country in enumerate(sorted(df['country'].unique()))}
@@ -36,18 +36,19 @@ class AudioDataset(Dataset):
         spectrogram = torch.FloatTensor(self.df.iloc[idx]['spectrogram'])
         country = self.df.iloc[idx]['country']
         
-        # Normalize using country-specific statistics
-        #spectrogram = (spectrogram - spectrogram.mean()) / (spectrogram.std() + 1e-6)
+       
         
-                # Normalize using global statistics
+        # Normalize using global statistics
         spectrogram = (spectrogram - self.global_mean) / (self.global_std + 1e-6)
+
+        #spectrogram = (spectrogram - spectrogram.min()) / (spectrogram.max() - spectrogram.min()) * 2 - 1
 
         # Data augmentation during training
         if self.transform:
             # Random time masking
             if torch.rand(1) < 0.5:
                 time_mask_param = int(spectrogram.shape[1] * 0.1)
-                # Librosa doesn't have a direct time masking equivalent, so we'll implement it manually
+                # Librosa doesn't have a direct time masking equivalent, so implement it manually
                 mask_start = np.random.randint(0, spectrogram.shape[1] - time_mask_param)
                 spectrogram[:, mask_start:mask_start + time_mask_param] = 0
             
@@ -82,7 +83,7 @@ class AudioDataLoader():
         # Let the user call it explicitly when needed
     
     
-    def create_train_val_test_split(self, random_state=42, batch_size=16):
+    def create_train_val_test_split(self, random_state=42, batch_size=48):
         """
         Create stratified train/test splits and return DataLoaders.
         
@@ -145,7 +146,7 @@ class AudioDataLoader():
         # Create DataLoader objects
         train_loader = DataLoader(
             train_dataset, 
-            batch_size=16, 
+            batch_size=batch_size, 
             shuffle=True,
             num_workers=3,
             pin_memory=True,
@@ -173,6 +174,19 @@ class AudioDataLoader():
         
         return train_loader, val_loader, test_loader
 
+    def create_train_val_split(self, exclude_indices, random_state=42, batch_size=16):
+        """
+        Create a train/val split from the expanded dataset, excluding specified indices.
+    
+        Args:
+            exclude_indices (list): List of indices (correlate with data from initial test split)to exclude from the split
+            random_state (int): Random seed
+            batch_size (int): Batch size for DataLoader
+        
+        Returns:
+            tuple: (train_loader, val_loader)
+        """
+        
 def save_dataset(data, save_path, format='pkl'):
         """
         Save the expanded dataset.

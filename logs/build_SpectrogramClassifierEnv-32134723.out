@@ -1,0 +1,23 @@
+Retrieving notices: ...working... done
+Channels:
+ - pytorch
+ - conda-forge
+ - defaults
+Platform: linux-64
+Collecting package metadata (repodata.json): ...working... done
+Solving environment: ...working... done
+
+Downloading and Extracting Packages: ...working... done
+Preparing transaction: ...working... done
+Verifying transaction: ...working... done
+Executing transaction: ...working... done
+Installing pip dependencies: ...working... Ran pip subprocess with arguments:
+['/home/ckolahi/.conda/envs/SpectrogramClassifierEnv/bin/python', '-m', 'pip', 'install', '-U', '-r', '/gpfs/home/ckolahi/SpectrogramClassifier/condaenv.6ni1dkqy.requirements.txt', '--exists-action=b']
+Pip subprocess output:
+Collecting git+https://github.com/conery/nbscan.git (from -r /gpfs/home/ckolahi/SpectrogramClassifier/condaenv.6ni1dkqy.requirements.txt (line 3))
+  Cloning https://github.com/conery/nbscan.git to /tmp/pip-req-build-sr5ywffx
+  Resolved https://github.com/conery/nbscan.git to commit af32e000f78643f7a987055e8a4870072bda7de1
+  Preparing metadata (setup.py): started
+  Preparing metadata (setup.py): finished with status 'done'
+
+failed

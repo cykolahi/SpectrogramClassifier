@@ -1,0 +1,13 @@
+#!/bin/bash
+#SBATCH --job-name=build_SpectrogramClassifierEnv
+#SBATCH --account=dsci410_510
+#SBATCH --partition=compute
+#SBATCH --output=logs/%x-%A.out
+#SBATCH --error=logs/%x-%A.err
+#SBATCH --time=0:30:0
+
+module purge
+module load miniconda3/20240410 
+conda env create -f environment.yml --solver=libmamba
+conda activate SpectrogramClassifierEnv
+python -m bash_kernel.install

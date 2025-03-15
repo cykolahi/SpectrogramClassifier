@@ -9,31 +9,199 @@ print("Torch path:", torch.__file__)
 print("Torch version:", torch.__version__)
 #print('Lightning version:', pl.__version__)
 
+
 class SpectrogramCNN_1d_attn(pl.LightningModule):
     def __init__(self, num_classes):
         super().__init__()
         
-        # Feature extraction
-        self.conv1 = nn.Conv1d(128, 256, kernel_size=3, stride=1, padding=1)
-        self.bn1 = nn.BatchNorm1d(256)
-        self.pool1 = nn.MaxPool1d(kernel_size=2)
+        # First conv block - matches [256, 128, 3]
+        self.conv1 = nn.Conv1d(256, 512, kernel_size=3, padding=1)
+        self.bn1 = nn.BatchNorm1d(512)
+        self.pool1 = nn.MaxPool1d(2)
+        self.dropout1 = nn.Dropout(0.3)
 
-        # First attention block after initial feature extraction
+        # First attention block - matches [256, 256, 1]
         self.attention1 = nn.Sequential(
-            nn.Conv1d(256, 256, kernel_size=1),
-            nn.BatchNorm1d(256),
+            nn.Conv1d(512, 512, kernel_size=1),
+            nn.BatchNorm1d(512),
             nn.ReLU(),
-            nn.Conv1d(256, 256, kernel_size=1),
+            nn.Conv1d(512, 512, kernel_size=1),
+            nn.Sigmoid()
+        )
+
+        # Second conv block (conv2) from checkpoint
+        self.conv2 = nn.Conv1d(512, 256, kernel_size=3, padding=1)
+        self.bn2 = nn.BatchNorm1d(256)
+        self.pool2 = nn.MaxPool1d(2)
+
+        # Third conv block - matches [512, 512, 3]
+        self.conv3 = nn.Conv1d(256, 128, kernel_size=3, padding=1)
+        self.bn3 = nn.BatchNorm1d(128)
+        self.pool3 = nn.MaxPool1d(2)
+        
+        # Second attention block - matches [512, 512]
+        self.attention2 = nn.Sequential(
+            nn.Linear(128, 128),
+            nn.ReLU(),
+            nn.Linear(128, 128),
             nn.Softmax(dim=1)
         )
 
-        self.conv2 = nn.Conv1d(256, 512, kernel_size=3, stride=1, padding=1)
-        self.bn2 = nn.BatchNorm1d(512)
-        self.pool2 = nn.MaxPool1d(kernel_size=2)
+        # Fully connected layers - match checkpoint sizes
+        self.fc1 = nn.Linear(128, 64)
+        self.fc2 = nn.Linear(64, 32)
+        self.fc3 = nn.Linear(32, num_classes)
+        
+        self.dropout2 = nn.Dropout(0.3)
+        self.dropout3 = nn.Dropout(0.3)
+        self.adaptive_pool = nn.AdaptiveAvgPool1d(1)
 
-        self.conv3 = nn.Conv1d(512, 512, kernel_size=4, stride=1, padding=1)
+        self.criterion = nn.CrossEntropyLoss(label_smoothing=0.1)
+
+    def training_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self.forward(x)
+        loss = self.criterion(y_hat, y)
+        preds = torch.argmax(y_hat, dim=1)
+        acc = (preds == y).float().mean()
+        self.log('train_loss', loss)
+        self.log('train_acc', acc)
+        return loss
+
+    def validation_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self.forward(x)
+        
+        # Add debug prints
+        #rint("Val step - y_hat shape:", y_hat.shape)
+        #print("Val step - y shape:", y.shape)
+        
+        loss = self.criterion(y_hat, y)  # CrossEntropyLoss expects [B, C] and [B]
+        
+        # Calculate accuracy
+        pred = torch.argmax(y_hat, dim=1)
+        acc = (pred == y).float().mean()
+        
+        self.log('val_loss', loss)
+        self.log('val_acc', acc)
+        return {'val_loss': loss, 'val_acc': acc}
+
+    def test_step(self, batch, batch_idx):
+        x, y = batch
+        y_hat = self.forward(x)
+        loss = self.criterion(y_hat, y)
+        self.log('test_loss', loss)
+        # Calculate accuracy
+        pred = torch.argmax(y_hat, dim=1)
+        acc = (pred == y).float().mean()
+        self.log('test_acc', acc)
+        return {'test_loss': loss, 'test_acc': acc}
+
+    def configure_optimizers(self):
+        optimizer = torch.optim.AdamW(self.parameters(), 
+                                     lr=0.0001,
+                                     weight_decay=0.0001)
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer,
+            mode='min',
+            factor=0.2,
+            patience=5,
+        )
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "monitor": "val_loss"
+            }
+        }
+    
+    def compute_pool_size(self, attention_weights, min_size=1, max_size=216):
+        time_importance = attention_weights.mean(dim=1).max(dim=1)[0]
+        pool_size = max(min_size, int(time_importance.mean() * max_size))
+        return pool_size        
+
+
+    def forward(self, x):
+        
+        x = x.squeeze(1)
+        
+        # First conv block
+        x = self.conv1(x)
+        x = F.relu(self.bn1(x))
+        #x = F.relu(x)
+        x = self.pool1(x)
+        
+        # First attention - temporal attention
+        attn1 = self.attention1(x)
+        x = x * attn1  # Element-wise multiplication
+    
+        # More conv blocks
+        #x = self.conv2(x)
+        #x = F.relu(self.bn2(x))
+        #x = F.relu(x)
+        #x = self.pool2(x)
+        #x = self.adaptive_pool(x)
+        #x = x.squeeze(-1)
+
+        x = self.conv2(x)
+        x = F.relu(self.bn2(x))
+        #x = F.relu(x)
+        x = self.pool2(x)
+
+        x = self.conv3(x)
+        x = F.relu(self.bn3(x))
+        #x = F.relu(x)
+        x = self.pool3(x)
+        
+        # Global pooling
+        x = self.adaptive_pool(x)
+        x = x.squeeze(-1)
+        
+        # Second attention - feature attention
+        attn2 = self.attention2(x)
+        x = x * attn2
+        
+
+        # Classification
+        x = F.relu(self.fc1(x))
+        x = self.dropout2(x)
+        x = F.relu(self.fc2(x))
+        x = self.dropout3(x)
+        x = self.fc3(x)
+        
+        return x
+    
+
+
+
+
+class SpectrogramCNN_1d_attnNO(pl.LightningModule):
+    def __init__(self, num_classes):
+        super().__init__()
+        
+        # Feature extraction
+        self.conv1 = nn.Conv1d(256, 512, kernel_size=3, stride=1, padding=1)
+        self.bn1 = nn.BatchNorm1d(512)
+        self.pool1 = nn.MaxPool1d(kernel_size=2)
+        self.dropout1 = nn.Dropout(0.1)
+
+        
+        # First attention block after initial feature extraction
+        self.attention1 = nn.Sequential(
+            nn.Conv1d(512, 512, kernel_size=1),
+            nn.BatchNorm1d(512),
+            nn.ReLU(),
+            nn.Conv1d(512, 512, kernel_size=1),
+            nn.Softmax(dim=1)
+        )
+
+        self.conv3 = nn.Conv1d(512, 512, kernel_size=3, stride=1, padding=1)
         self.bn3 = nn.BatchNorm1d(512)
-        self.pool3 = nn.MaxPool1d(kernel_size=3)
+        self.pool3 = nn.MaxPool1d(kernel_size=2)
+
+        self.conv4 = nn.Conv1d(512, 512, kernel_size=3, stride=1, padding=1)
+        self.bn4 = nn.BatchNorm1d(512)
+        self.pool4 = nn.MaxPool1d(kernel_size=2)
 
         # Second attention block before FC layers
         self.attention2 = nn.Sequential(
@@ -42,14 +210,17 @@ class SpectrogramCNN_1d_attn(pl.LightningModule):
             nn.Linear(512, 512),
             nn.Softmax(dim=1)
         )
-
+        #self.attention_weights = self.attention1
+        # Attention weights could determine pooling regions
+        #pool_size = self.attention_weights.argmax(dim=1)  # Most important regions
         self.adaptive_pool = nn.AdaptiveAvgPool1d(1)
+
         
         self.fc1 = nn.Linear(512, 256)
         self.dropout1 = nn.Dropout(0.3)
-        self.fc2 = nn.Linear(256, 256)
+        self.fc2 = nn.Linear(256, 128)
         self.dropout2 = nn.Dropout(0.3)
-        self.fc3 = nn.Linear(256, num_classes)
+        self.fc3 = nn.Linear(128, num_classes)
 
         self.criterion = nn.CrossEntropyLoss()
     
@@ -93,14 +264,14 @@ class SpectrogramCNN_1d_attn(pl.LightningModule):
         return {'test_loss': loss, 'test_acc': acc}
 
     def configure_optimizers(self):
-        optimizer = torch.optim.Adam(self.parameters(), 
+        optimizer = torch.optim.AdamW(self.parameters(), 
                                      lr=0.0001,
                                      weight_decay=0.0001)
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,
             mode='min',
-            factor=0.5,
-            patience=10,
+            factor=0.3,
+            patience=8,
         )
         return {
             "optimizer": optimizer,
@@ -109,44 +280,65 @@ class SpectrogramCNN_1d_attn(pl.LightningModule):
                 "monitor": "val_loss"
             }
         }
+    
+    def compute_pool_size(self, attention_weights, min_size=1, max_size=216):
+        time_importance = attention_weights.mean(dim=1).max(dim=1)[0]
+        pool_size = max(min_size, int(time_importance.mean() * max_size))
+        return pool_size        
+
 
     def forward(self, x):
-        x = x.squeeze(1)  # [batch, 128, time]
+        x = x.squeeze(1)  
         
         # First conv block
         x = self.conv1(x)
         x = F.relu(self.bn1(x))
+        #x = F.relu(x)
         x = self.pool1(x)
         
         # First attention - temporal attention
         attn1 = self.attention1(x)
         x = x * attn1  # Element-wise multiplication
-        
+    
         # More conv blocks
-        x = self.conv2(x)
-        x = F.relu(self.bn2(x))
-        x = self.pool2(x)
+        #x = self.conv2(x)
+        #x = F.relu(self.bn2(x))
+        #x = F.relu(x)
+        #x = self.pool2(x)
+        #x = self.adaptive_pool(x)
+        #x = x.squeeze(-1)
 
         x = self.conv3(x)
         x = F.relu(self.bn3(x))
+        #x = F.relu(x)
         x = self.pool3(x)
+
+        x = self.conv4(x)
+        x = F.relu(self.bn4(x))
+        #x = F.relu(x)
+        x = self.pool4(x)
         
         # Global pooling
-        x = self.adaptive_pool(x)  # [batch, 64, 1]
-        x = x.squeeze(-1)  # [batch, 64]
+        x = self.adaptive_pool(x)
+        x = x.squeeze(-1)
         
         # Second attention - feature attention
         attn2 = self.attention2(x)
         x = x * attn2
         
+
         # Classification
         x = F.relu(self.fc1(x))
         x = self.dropout1(x)
-        x = self.fc2(x)
+        x = F.relu(self.fc2(x))
         x = self.dropout2(x)
         x = self.fc3(x)
         
         return x
+    
+
+
+
 
 class SpectrogramCNN_1d(pl.LightningModule):
     def __init__(self, num_classes):
@@ -249,7 +441,7 @@ class SpectrogramCNN_1d(pl.LightningModule):
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
             optimizer,
             mode='min',
-            factor=0.2,
+            factor=0.5,
             patience=5,
         )
         return {

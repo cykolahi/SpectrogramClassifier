@@ -17,10 +17,10 @@ class AudioLocationParser:
 
     def get_coordinates_with_audio_paths(self, audio_path):
         tracks = utils.load('/projects/dsci410_510/Kolahi_data_temp/fma_metadata/tracks.csv')
-        small = tracks[tracks['set', 'subset'] <= 'small']
-        
+        medium = tracks[tracks['set', 'subset'] <= 'medium']
+        #small = small[small['artist_latitude'].notna()]
         self.artist_location_dict = {}
-        for track_id, artist in small['artist'].iterrows():
+        for track_id, artist in medium['artist'].iterrows():
             lat = artist['latitude']
             lon = artist['longitude']
             if pd.notna(lat) and pd.notna(lon):
@@ -28,13 +28,13 @@ class AudioLocationParser:
 
         self.audio_paths = []
         for track_id, coordinates in self.artist_location_dict.items():
-            #coordinates = coordinates.split(',')
+            #oordinates = coordinates.split(',')
             #latitude = coordinates[0]
             #longitude = coordinates[1]
-            audio_path = utils.get_audio_path('/projects/dsci410_510/Kolahi_data_temp/fma_small', track_id)
+            audio_path = utils.get_audio_path('/projects/dsci410_510/Kolahi_data_temp/fma_medium', track_id)
             self.audio_paths.append(audio_path)
-        
         return self.artist_location_dict, self.audio_paths
+
 
 
     def get_country_from_coordinates(self, latitude, longitude, max_retries=3):
@@ -109,8 +109,9 @@ class AudioLocationParser:
             print(f"Successfully processed {len([c for c in countries if c != 'Timeout' and c != 'Error'])} locations")
 
         return df
+    
 
-    def filter_and_balance_dataset(self, df, min_samples=30, target_samples=None):
+    def filter_and_balance_dataset(self, df, min_samples=30, target_samples=None, balance_classes=False):
         """
         Filter countries with minimum samples and optionally balance classes
         
@@ -177,9 +178,17 @@ def filter_and_kinda_balance_dataset(self, df, min_samples=30, target_samples=No
 def main():
     parser = AudioLocationParser()
     artist_location_dict, audio_paths = parser.get_coordinates_with_audio_paths('/projects/dsci410_510/Kolahi_data_temp/fma_metadata/tracks.csv')
-    paths_w_countries = parser.parse_locations(artist_location_dict, save_path='/projects/dsci410_510/Kolahi_data_temp/temp_tracks_with_countries.csv')
-    balanced_df = parser.filter_and_balance_dataset(paths_w_countries, min_samples=30, target_samples=30)
-    balanced_df.to_csv('/projects/dsci410_510/Kolahi_data_temp/tracks_with_countries.csv', index=False)
+    paths_w_countries = parser.parse_locations(artist_location_dict, save_path='/projects/dsci410_510/Kolahi_data_temp/medium_tracks_with_countries.csv')
+    #balanced_df = parser.filter_and_balance_dataset(paths_w_countries, min_samples=30, target_samples=30)
+    #balanced_df.to_csv('/projects/dsci410_510/Kolahi_data_temp/tracks_with_countries.csv', index=False)
+    print(paths_w_countries.head())
+    print(len(paths_w_countries))
+    print(paths_w_countries['country'].value_counts())
+
+    #artist_location_dict, audio_paths = parser.get_coordinates_with_audio_paths('/projects/dsci410_510/Kolahi_data_temp/fma_metadata/tracks.csv')
+    #paths_w_countries = parser.parse_locations(artist_location_dict, save_path='/projects/dsci410_510/Kolahi_data_temp/temp_tracks_with_countries.csv')
+    #balanced_df = parser.filter_and_balance_dataset(paths_w_countries, min_samples=30, target_samples=30)
+    #balanced_df.to_csv('/projects/dsci410_510/Kolahi_data_temp/tracks_with_countries.csv', index=False)
 
 if __name__ == "__main__":
     main()

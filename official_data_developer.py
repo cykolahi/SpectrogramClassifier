@@ -40,8 +40,23 @@ class AudioDataDeveloper():
         
         # Filter countries with minimum samples
         country_counts = self.df['country'].value_counts()
-        self.min_samples_per_country = country_counts[2]
-        print(f"min_samples_per_country: {self.min_samples_per_country}")
+        print("initial country counts:", country_counts)
+        self.min_samples_per_country = country_counts.iloc[4]
+        # Get countries that have at least min_samples, and take min_samples + 100 if possible
+        self.min_samples_each_country = []
+        for country in country_counts.index:
+            country_count = country_counts[country]
+            adjusted_count = country_count - (self.min_samples_per_country + 100)
+            if adjusted_count < 0:
+                # If negative, use original count
+                samples_to_take = country_count
+            else:
+                # If positive, use min_samples + 100
+                samples_to_take = self.min_samples_per_country + 100
+            
+            if samples_to_take >= self.min_samples_per_country:
+                self.min_samples_each_country.append(samples_to_take)
+        print(f"min_samples_each_country: {self.min_samples_each_country}") 
         countries_to_keep = country_counts[country_counts >= self.min_samples_per_country].index
         self.df = self.df[self.df['country'].isin(countries_to_keep)]
         #print(self.df['country'].value_counts())
@@ -58,10 +73,10 @@ class AudioDataDeveloper():
             random_state (int): Random seed for reproducibility
         """
         balanced_df = pd.DataFrame()
-        for country in self.df['country'].unique():
+        for country in range(len(self.min_samples_each_country)):
             country_data = self.df[self.df['country'] == country]
-            if len(country_data) > self.min_samples_per_country:
-                country_data = country_data.sample(n=self.min_samples_per_country+30, random_state=random_state)
+            if len(country_data) > self.min_samples_each_country[country]:
+                country_data = country_data.sample(n=self.min_samples_each_country[country], random_state=random_state)
             balanced_df = pd.concat([balanced_df, country_data])
             
         self.df = balanced_df.reset_index(drop=True)
@@ -100,7 +115,7 @@ class AudioDataDeveloper():
             mel = librosa.feature.melspectrogram(
                 sr=sr, 
                 S=stft**2,
-                n_mels=128,
+                n_mels=256,
                 fmin=20,
                 fmax=8000
             )
@@ -139,14 +154,18 @@ class AudioDataDeveloper():
                 print(f"Error processing {row['audio_path']}: {str(e)}")
                 
         self.expanded_df = pd.DataFrame(expanded_data)
-        return self.expanded_df
+        #
+        # return self.expanded_df
     
     def save_dataset(self, save_path, format='pkl'):
         self.expanded_df.to_pickle(save_path)
 
     def examine_dataset(self):
         print(self.expanded_df.head())
+        print(len(self.expanded_df))
         print(self.expanded_df['country'].value_counts())
+
+
 
 
     def analyze_spectrogram_shapes(self):
@@ -164,8 +183,7 @@ class AudioDataDeveloper():
         # Count unique shapes
         shape_counts = {}
         for shape, country in shapes_and_countries:
-            if shape == (128, 844):
-                print(f"Shape {shape} found for country {country}")
+            #print(f"Shape {shape} found for country {country}")
             shape_counts[shape] = shape_counts.get(shape, 0) + 1
             
         print("\nSpectrogram shape analysis:")
@@ -178,11 +196,11 @@ class AudioDataDeveloper():
         
 
 def main():
-    data_developer = AudioDataDeveloper(data_path='/projects/dsci410_510/Kolahi_data_temp/temp_tracks_with_countries.csv')
+    data_developer = AudioDataDeveloper(data_path='/projects/dsci410_510/Kolahi_data_temp/medium_tracks_with_countries.csv')
     data_developer.load_data()
     data_developer.balance_dataset()
     data_developer.create_expanded_dataset()
-    data_developer.save_dataset('/projects/dsci410_510/Kolahi_data_temp/expanded_dataset_v16.pkl')
+    data_developer.save_dataset('/projects/dsci410_510/Kolahi_data_temp/expanded_dataset_v22.pkl')
 
     #data_developer.examine_dataset()
     data_developer.analyze_spectrogram_shapes()

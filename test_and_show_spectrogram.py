@@ -8,16 +8,16 @@ import ast
 import pickle
 
 # Load the pickle file
-with open('/projects/dsci410_510/Kolahi_data_temp/Kolahi_dataset.pkl', 'rb') as f:
+with open('/projects/dsci410_510/Kolahi_data_temp/expanded_dataset_v20.pkl', 'rb') as f:
     data = pickle.load(f)
 
 def display_random_spectrogram():
     # Get a random index
-    idx = np.random.randint(0, len(data['spectrograms']))
+    idx = np.random.randint(0, len(data['spectrogram']))
     
     # Get the spectrogram and country for that index
-    spec_data = data['spectrograms'][idx]
-    country = data['countries'][idx]
+    spec_data = data['spectrogram'][idx]
+    country = data['country'][idx]
     
     print(spec_data.shape)
 
@@ -29,18 +29,28 @@ def display_random_spectrogram():
     
     # Display the spectrogram with correct time axis
     plt.figure(figsize=(10, 4))
-    img = librosa.display.specshow(spec_data, 
-                                 x_axis='time',
-                                 y_axis='mel', 
-                                 sr=sr,
-                                 hop_length=hop_length,  # Add this parameter
-                                 fmax=8000)
+    img = librosa.display.specshow(spec_data, fmax=8000)
     plt.colorbar(img, format='%+2.0f dB')
     plt.title(f'Mel-frequency spectrogram - {country}')
+    plt.savefig('SpectrogramClassifier/specimgs/random_spectrogram12.png')
     plt.show()
 
 if __name__ == "__main__":
+    # Get shapes of all spectrograms
+    shapes = [spec.shape for spec in data['spectrogram']]
+    
+    # Count unique shapes
+    shape_counts = {}
+    for shape in shapes:
+        shape_counts[shape] = shape_counts.get(shape, 0) + 1
+    
+    print("Spectrogram shape counts:")
+    for shape, count in shape_counts.items():
+        print(f"Shape {shape}: {count} spectrograms")
+    print(f"\nTotal spectrograms: {len(shapes)}")
+    print()
     display_random_spectrogram()
+
 
 
 

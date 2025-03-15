@@ -31,42 +31,57 @@ class MetricsCallback(Callback):
         print(f"Training Loss: {metrics.get('train_loss', 0):.4f}")
         print(f"Validation Loss: {metrics.get('val_loss', 0):.4f}")
         print(f"Validation Accuracy: {metrics.get('val_acc', 0):.4f}")
+        #print(f"Test Accuracy: {metrics.get('test_acc', 0):.4f}")
         
         # Log training metrics
-        self.tensorboard_writer.add_scalar('loss', metrics.get('train_loss', 0))
+        self.tensorboard_writer.add_scalar('train_loss', metrics.get('train_loss', 0))
+
         
         # Switch to validation mode for logging
         self.tensorboard_writer.set_step(epoch, mode='valid')
-        self.tensorboard_writer.add_scalar('loss', metrics.get('val_loss', 0))
-        self.tensorboard_writer.add_scalar('accuracy', metrics.get('val_acc', 0))
-
+        self.tensorboard_writer.add_scalar('val_loss', metrics.get('val_loss', 0))
+        self.tensorboard_writer.add_scalar('val_acc', metrics.get('val_acc', 0))
+        self.tensorboard_writer.add_scalar('test_acc', metrics.get('test_acc', 0))
 
 
 class DataReloaderCallback(Callback):
-    def __init__(self, data_path, reload_every_n_epochs=10):
+    def __init__(self, data_path, test_loader, reload_every_n_epochs=12):
         super().__init__()
         self.data_path = data_path
         self.reload_every_n_epochs = reload_every_n_epochs
         self.current_epoch = 0
+        self.test_loader = test_loader
+    def find_test_indices(self):
+        """
+        Find the indices of samples in the test loader dataset.
         
+        Returns:
+            set: Set of indices from the test dataset
+        """
+        self.test_indices = set()
+        for i in range(len(self.test_loader.dataset)):
+            self.test_indices.add(i)
+        return self.test_indices
+    '''
     def on_epoch_end(self, trainer, pl_module):
         self.current_epoch += 1
         if self.current_epoch % self.reload_every_n_epochs == 0:
             print(f"\nReloading data with new random split at epoch {self.current_epoch}")
-            # Create new data loaders
+            # Create new data loaders, excluding test data
             data_loader = AudioDataLoader(self.data_path)
-            new_train_loader, new_val_loader, new_test_loader = data_loader.create_train_val_test_split(
+            self.test_indices = self.find_test_indices()
+            new_train_loader, new_val_loader = data_loader.create_train_val_split(
+                exclude_indices=self.test_indices,
                 random_state=42 + self.current_epoch  # Different seed each time
-            )
+                batch_size=16)
             
-            # Update the trainer's dataloaders
+            # Update only train and val dataloaders, keeping test_loader unchanged
             trainer.train_dataloader = lambda: new_train_loader
             trainer.val_dataloaders = lambda: new_val_loader
-            trainer.test_dataloaders = lambda: new_test_loader
+    '''
 
 
-
-def train_model(train_loader, val_loader, test_loader, num_classes, max_epochs=600, data_path=''):
+def train_model(train_loader, val_loader, test_loader, num_classes, max_epochs, data_path=''):
     # Initialize model
     if not torch.cuda.is_available():
         print("WARNING: No GPU found. Please check your CUDA installation.")
@@ -88,8 +103,9 @@ def train_model(train_loader, val_loader, test_loader, num_classes, max_epochs=6
     # Initialize callbacks
     early_stopping = EarlyStopping(
         monitor='val_loss',
-        patience=15,
-        mode='min'
+        patience=50,
+        mode='min',
+        min_delta=0.001
     )
     
     checkpoint_callback = ModelCheckpoint(
@@ -106,20 +122,20 @@ def train_model(train_loader, val_loader, test_loader, num_classes, max_epochs=6
         max_epochs=max_epochs,
         accelerator='gpu',
         devices=1,
-        callbacks=[DataReloaderCallback(data_path=data_path, reload_every_n_epochs=20),
-            early_stopping, checkpoint_callback, metrics_callback],
+        callbacks=[
+            checkpoint_callback, metrics_callback],
         enable_progress_bar=True,
         enable_model_summary=True,
-        log_every_n_steps=100,
+        log_every_n_steps=1,
         enable_checkpointing=True,
         logger=True,
         val_check_interval=1.0,
         accumulate_grad_batches=1,
         #precision='32-true'
+        #gradient_clip_val=1.0
         
     )
-    
-    
+            
     # Add this debug code before training
     for batch in train_loader:
         x, y = batch
@@ -140,7 +156,7 @@ def train_model(train_loader, val_loader, test_loader, num_classes, max_epochs=6
 
 
 def main():
-    unloaded_data_path = '/projects/dsci410_510/Kolahi_data_temp/expanded_dataset_v16.pkl'
+    unloaded_data_path = '/projects/dsci410_510/Kolahi_data_temp/expanded_dataset_v21.pkl'
     
     # Load data
     data = pickle.load(open(unloaded_data_path, 'rb'))
@@ -163,15 +179,16 @@ def main():
     #print(f"shape of tensor: {train_loader}")
     
     # Train the model
-    model = train_model(train_loader, val_loader, test_loader, num_classes=3, max_epochs=300, data_path=unloaded_data_path) 
+    model = train_model(train_loader, val_loader, test_loader, num_classes=3, max_epochs=250, data_path=unloaded_data_path) 
 
     # Create the directory if it doesn't exist
-    save_dir = 'SpectrogramClassifier/models'
-    os.makedirs(save_dir, exist_ok=True)
+    #save_dir = '/projects/dsci410_510/Kolahi_models'
+
+    #os.makedirs(save_dir, exist_ok=True)
     
     # Save the model with error handling
     try:
-        save_path = os.path.join(save_dir, 'model_v8.pth')
+        save_path = '/projects/dsci410_510/Kolahi_models/model_v24.pth'
         torch.save(model.state_dict(), save_path)
         print(f"Model successfully saved to: {save_path}")
     except Exception as e:

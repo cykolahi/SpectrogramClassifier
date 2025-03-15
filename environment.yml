@@ -11,6 +11,13 @@ dependencies:
   - pytorch-lightning
   - numpy
   - pandas
+  - jupyter
+  - pickleshare
+  - r-base
+  - r-essentials
+  - r-irkernel
+  - nodejs
+  - ipywidgets
   - matplotlib
   - seaborn
   - librosa
@@ -20,9 +27,8 @@ dependencies:
   - pip
   - pip:
     - aifc
+    - bash_kernel
+    - git+https://github.com/conery/nbscan.git
+    - tensorboardx
 
-# run these terminal command within the project directory to create the environment:
-# module load miniconda3/20240410
-# conda env create -f environment.yml 
-# conda activate SpectrogramClassifierEnv
 

@@ -1,0 +1,9 @@
+Pip subprocess error:
+  Running command git clone --filter=blob:none --quiet https://github.com/conery/nbscan.git /tmp/pip-req-build-sr5ywffx
+ERROR: Could not find a version that satisfies the requirement aifc (from versions: none)
+ERROR: No matching distribution found for aifc
+
+
+CondaEnvException: Pip failed
+
+/home/ckolahi/.conda/envs/SpectrogramClassifierEnv/bin/python: Error while finding module specification for 'bash_kernel.install' (ModuleNotFoundError: No module named 'bash_kernel')
