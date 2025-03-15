@@ -44,9 +44,13 @@ results:
 ![alt text](image.png)  
 
 
-
 To see the data_loader in use check out the data_demo.ipynb file. 
 
-The limitations of this model are
+The main limitations of this model are its lack of access to a large variety of music from different countries, and therefore its 
+ability to accuratetely train and predict a large number of countries (couldn't get higher than around a .75 accuracy with more than 3 countries)
+Also, when creating the spectrograms you can mess around with different sized mels which creates spectrograms of size (mels, time).
+After experimenting, I found that any more than 256 mels is not necessary for training, and any less than 128 and you will miss out on some features. 
+
+
 
 
